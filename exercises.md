@@ -875,3 +875,124 @@ WHERE diferenca_dias IS NOT NULL;
 - A consulta principal calcula a média dessas diferenças de dias.
 
 Essas consultas atendem aos requisitos dos exercícios, utilizando funções de janela para calcular rankings e diferenças de datas, além de aplicar o conceito de salários únicos para o último exercício.
+
+
+
+Para resolver essas questões no ambiente do Live SQL (provavelmente Oracle Live SQL), usaremos sintaxe SQL compatível com o Oracle. Vamos ajustar as consultas considerando que o Oracle pode ter algumas limitações e especificidades em relação ao FETCH e ao uso de WITH para consultas mais avançadas.
+
+1 - (a) Criar a View
+
+Primeiro, vamos criar uma VIEW chamada CUSTOMER_ORDERS_VIEW que inclua todas as colunas e um campo calculado total_price:
+
+CREATE OR REPLACE VIEW customer_orders_view AS
+SELECT 
+    o.order_id,
+    o.order_datetime,
+    c.customer_id,
+    s.store_id,
+    c.email_address,
+    c.full_name,
+    s.store_name,
+    s.web_address,
+    s.physical_address,
+    p.product_id,
+    oi.unit_price,
+    oi.quantity,
+    p.product_name,
+    (oi.unit_price * oi.quantity) AS total_price
+FROM 
+    orders o
+JOIN 
+    customers c ON o.customer_id = c.customer_id
+JOIN 
+    stores s ON o.store_id = s.store_id
+JOIN 
+    order_items oi ON o.order_id = oi.order_id
+JOIN 
+    products p ON oi.product_id = p.product_id;
+
+1 - (b) Verificar o Total de Clientes, Pedidos e Lojas
+
+Para obter o total de clientes, pedidos e lojas, podemos usar as seguintes consultas:
+```sql
+-- Total de clientes
+SELECT COUNT(DISTINCT customer_id) AS total_customers FROM customers;
+
+-- Total de pedidos
+SELECT COUNT(DISTINCT order_id) AS total_orders FROM orders;
+
+-- Total de lojas
+SELECT COUNT(DISTINCT store_id) AS total_stores FROM stores;
+```
+1 - (c) Média e Total de Compras por Loja
+
+Agora, para exibir a média e o total de compras por loja em ordem decrescente (com 2 casas decimais), usaremos a VIEW criada e a função ROUND:
+```sql
+SELECT 
+    s.store_name,
+    ROUND(AVG(v.total_price), 2) AS average_purchase,
+    ROUND(SUM(v.total_price), 2) AS total_purchase
+FROM 
+    customer_orders_view v
+JOIN 
+    stores s ON v.store_id = s.store_id
+GROUP BY 
+    s.store_name
+ORDER BY 
+    total_purchase DESC;
+```
+2. Mostrar os Dados dos Clientes que Compraram na Loja com Maior Quantidade de Vendas
+
+Para encontrar os clientes que compraram na loja com a maior quantidade de vendas, usaremos uma subconsulta para identificar a store_id com a maior quantidade de pedidos:
+```sql
+WITH top_store AS (
+    SELECT 
+        store_id
+    FROM 
+        customer_orders_view
+    GROUP BY 
+        store_id
+    ORDER BY 
+        COUNT(order_id) DESC
+    FETCH FIRST 1 ROWS ONLY
+)
+SELECT 
+    DISTINCT v.customer_id,
+    v.full_name,
+    v.email_address
+FROM 
+    customer_orders_view v
+JOIN 
+    top_store ts ON v.store_id = ts.store_id;
+```
+3. Mostrar o Produto Mais Vendido de Cada Mês na Loja com Maior Quantidade de Vendas
+
+Para encontrar o produto mais vendido de cada mês na loja com a maior quantidade de vendas, faremos o agrupamento por mês e identificaremos o produto com mais vendas:
+``` sql
+WITH top_store AS (
+    SELECT 
+        store_id
+    FROM 
+        customer_orders_view
+    GROUP BY 
+        store_id
+    ORDER BY 
+        COUNT(order_id) DESC
+    FETCH FIRST 1 ROWS ONLY
+)
+SELECT 
+    v.product_name,
+    TO_CHAR(v.order_datetime, 'MM-YYYY') AS month,
+    v.store_name,
+    COUNT(v.product_id) AS total_sales
+FROM 
+    customer_orders_view v
+JOIN 
+    top_store ts ON v.store_id = ts.store_id
+GROUP BY 
+    TO_CHAR(v.order_datetime, 'MM-YYYY'), v.product_name, v.store_name
+ORDER BY 
+    month DESC,
+    total_sales DESC;
+```
+Essas consultas utilizam sintaxe compatível com o Oracle Live SQL e devem atender a cada uma das questões, utilizando JOINs para combinar dados de várias tabelas e agregações para calcular médias e totais.
