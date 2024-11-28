@@ -239,3 +239,115 @@ WHERE salary > (SELECT AVG(salary) FROM employees);
 ---
 
 Se precisar de mais exemplos ou de algo mais detalhado, é só avisar! 😊
+
+
+Aqui estão cinco perguntas abertas mais complexas, acompanhadas das respostas detalhadas:
+
+---
+
+### **1.** Usando funções de janela, escreva uma consulta para calcular a soma acumulada dos salários dos funcionários, ordenados por data de contratação. Inclua também a média acumulada e explique o funcionamento da consulta.
+
+**Resposta:**
+```sql
+SELECT 
+    employee_id,
+    hire_date,
+    salary,
+    SUM(salary) OVER (ORDER BY hire_date) AS soma_acumulada,
+    AVG(salary) OVER (ORDER BY hire_date) AS media_acumulada
+FROM employees;
+```
+
+**Explicação**:
+- `SUM(salary) OVER (ORDER BY hire_date)`: Calcula a soma acumulada dos salários, somando os valores de `salary` na ordem de contratação (`hire_date`).
+- `AVG(salary) OVER (ORDER BY hire_date)`: Calcula a média acumulada dos salários na mesma ordem.
+- A cláusula `OVER (ORDER BY hire_date)` define que a janela será acumulada progressivamente com base em `hire_date`.
+
+---
+
+### **2.** Um gestor precisa identificar os três funcionários mais bem pagos de cada departamento. Escreva a consulta que resolve este problema utilizando funções de janela.
+
+**Resposta:**
+```sql
+SELECT 
+    department_id,
+    employee_id,
+    salary,
+    ROW_NUMBER() OVER (PARTITION BY department_id ORDER BY salary DESC) AS posicao
+FROM employees
+WHERE ROW_NUMBER() OVER (PARTITION BY department_id ORDER BY salary DESC) <= 3;
+```
+
+**Explicação**:
+- `ROW_NUMBER() OVER (PARTITION BY department_id ORDER BY salary DESC)`: Gera uma numeração sequencial para cada funcionário dentro de seu departamento, ordenando pelo maior salário.
+- O filtro na cláusula `WHERE` restringe o resultado aos três primeiros funcionários de cada departamento.
+
+---
+
+### **3.** Crie uma consulta que identifique os funcionários que ganham mais do que a média de seu departamento, utilizando subconsultas correlacionadas. Explique como a consulta funciona.
+
+**Resposta:**
+```sql
+SELECT 
+    employee_id,
+    department_id,
+    salary
+FROM employees e1
+WHERE salary > (
+    SELECT AVG(salary)
+    FROM employees e2
+    WHERE e1.department_id = e2.department_id
+);
+```
+
+**Explicação**:
+- A subconsulta correlacionada `(SELECT AVG(salary) ... WHERE e1.department_id = e2.department_id)` calcula a média salarial de cada departamento.
+- A consulta principal compara o salário de cada funcionário (`e1.salary`) com a média de seu departamento.
+
+---
+
+### **4.** Um analista precisa gerar uma tabela com o nome completo dos funcionários, o tempo total de empresa (em anos) e classificá-los em categorias: "Novato" (até 2 anos), "Intermediário" (2-5 anos) e "Veterano" (mais de 5 anos). Escreva a consulta que resolve isso e explique como as categorias são aplicadas.
+
+**Resposta:**
+```sql
+SELECT 
+    CONCAT(first_name, ' ', last_name) AS nome_completo,
+    TRUNC(MONTHS_BETWEEN(SYSDATE, hire_date) / 12) AS anos_empresa,
+    CASE 
+        WHEN MONTHS_BETWEEN(SYSDATE, hire_date) <= 24 THEN 'Novato'
+        WHEN MONTHS_BETWEEN(SYSDATE, hire_date) <= 60 THEN 'Intermediário'
+        ELSE 'Veterano'
+    END AS categoria
+FROM employees;
+```
+
+**Explicação**:
+- `MONTHS_BETWEEN(SYSDATE, hire_date) / 12`: Calcula o tempo de empresa em anos.
+- O `CASE` classifica o tempo em três categorias:
+  - Até 2 anos (`<= 24 meses`): "Novato".
+  - Entre 2 e 5 anos (`> 24 e <= 60 meses`): "Intermediário".
+  - Mais de 5 anos: "Veterano".
+
+---
+
+### **5.** Um gestor quer saber quais cargos têm a maior diferença entre o salário máximo e mínimo, e deseja que os resultados sejam ordenados pela diferença em ordem decrescente. Escreva a consulta e explique o que está sendo feito.
+
+**Resposta:**
+```sql
+SELECT 
+    job_id,
+    MAX(salary) - MIN(salary) AS diferenca_salarios
+FROM employees
+GROUP BY job_id
+ORDER BY diferenca_salarios DESC;
+```
+
+**Explicação**:
+- `MAX(salary)` e `MIN(salary)`: Calculam os salários mais altos e mais baixos para cada cargo (`job_id`).
+- `MAX(salary) - MIN(salary)`: Determina a diferença entre o maior e o menor salário para o cargo.
+- `GROUP BY job_id`: Agrupa os resultados por cargo.
+- `ORDER BY diferenca_salarios DESC`: Ordena os cargos pela maior diferença salarial.
+
+---
+
+Essas perguntas abrangem conceitos avançados, combinando funções de janela, subconsultas e manipulação de dados com cláusulas como `GROUP BY`, `CASE` e `PARTITION BY`. Se precisar de mais explicações ou outros exemplos, estou à disposição! 😊
